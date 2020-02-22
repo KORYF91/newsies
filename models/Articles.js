@@ -25,7 +25,7 @@ var ArticleSchema = new Schema({
   // This allows us to populate the Article with an associated Note
   sum: {
     type: Schema.Types.ObjectId,
-    ref: "Note"
+    ref: "Summary"
   }
 
 });
