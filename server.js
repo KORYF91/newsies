@@ -1,59 +1,62 @@
 // Dependencies
 var express = require("express");
+var exphbs = require("express-handlebars")
 var mongoose = require("mongoose");
 var axios = require("axios");
 var cheerio = require("cheerio");
 // Sets an initial port. We"ll use this later in our listener
-var PORT = process.env.PORT || 8080;
-
+var PORT = process.env.PORT || 3000;
+var db = require("./models");
 // Initialize Express
 var app = express();
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 // Make public a static folder
 app.use(express.static("public"));
-
-var db = require("./models");
-
-
+// Handlebars
+app.engine(
+  "handlebars",
+  exphbs({
+    defaultLayout: "main",
+  }),
+);
+app.set("view engine", "handlebars");
 // If deployed, use the deployed database. Otherwise use the local mongoHeadlines database
 var MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost/npr";
 mongoose.connect(MONGODB_URI, { useNewUrlParser: true }).then(function () {
   console.log(`Connected to database ${MONGODB_URI}`);
 });
-
 // sConnect to the Mongo DB
 //  mongoose.connect("mongodb://localhost/npr", { useNewUrlParser: true });
-
-// Main route (simple Hello World Message)
+// Main route (LANDING PAGE)
 app.get("/", function(req, res) {
-  db.Article.find({})
+  db.Article.find({}).lean()
   .then(function(dbArticle) {
-  
-      res.json(dbArticle);
-     // var artcl = {article: found}
-      //res.render(index,artcl)
-    
+  var hbsObject = {
+    data: dbArticle
+  };
+      res.render("index", hbsObject);
+
   })
   .catch(function(err) {
     // If an error occurred, send it to the client
     res.json(err);
   });
-
-  res.render("index");
+  // res.render("index");
 });
 
-
-
+//Delete route - clear the database 
+app.delete("/delete", function(req, res) {
+  db.Article.deleteMany({}).then(function () {
+    res.status("200").send("deleted collection")
+  });
+});
 // make a button to hit the route on handlebar file.
-
 app.get("/scrape", function(req, res) {
 axios.get("https://www.npr.org/").then(function(response) {
   var $ = cheerio.load(response.data);
- 
-
-  $("div.story-wrap").each(function(i, element) {
-    var results = {};
+  var results = {};
+   $("div.story-wrap").each(function(i, element) {
     results.title = $(element)
     .find("h3")
     .text()
@@ -82,7 +85,6 @@ axios.get("https://www.npr.org/").then(function(response) {
           // If an error occurred, log it
           console.log(err);
         });
-
     }
   });
 });
@@ -91,10 +93,6 @@ axios.get("https://www.npr.org/").then(function(response) {
 res.send("Scrape Complete");
 });
 
-app.get("/article", function(req, res) {
-
-  
-});
 // Listen on port 3000
 app.listen(PORT, function() {
   console.log("App running on" + PORT);
